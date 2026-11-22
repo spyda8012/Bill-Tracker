@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6f5c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Bill Tracker</title>
+<style>
+:root{
+  --bg:#f5f6f4; --card:#ffffff; --text:#1c1f1d; --muted:#6b726e; --line:#e2e5e2;
+  --accent:#1f6f5c; --accent-ink:#ffffff; --danger:#b3261e; --warn:#a15c00; --ok:#2e7d32;
+  --danger-bg:#fdecea; --warn-bg:#fff4e0; --ok-bg:#e8f5e9; --chip:#eef1ee;
+  --radius:14px; --shadow:0 1px 2px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121413; --card:#1c1f1e; --text:#e8ebe9; --muted:#9aa29e; --line:#2c312f;
+    --accent:#4fb39a; --accent-ink:#0b1a16; --danger:#f2847c; --warn:#f0b35a; --ok:#7cc983;
+    --danger-bg:#3a1d1b; --warn-bg:#3a2c14; --ok-bg:#1b3320; --chip:#262a28;
+    --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:env(safe-area-inset-top) 0 calc(88px + env(safe-area-inset-bottom));}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 16px 8px;border-bottom:1px solid var(--line)}
+h1{font-size:22px;margin:0 0 10px}
+main{max-width:760px;margin:0 auto;padding:12px 16px}
+.wrap{max-width:760px;margin:0 auto}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--card);border-radius:var(--radius);padding:10px 12px;box-shadow:var(--shadow);border:1px solid var(--line);
+  text-align:left;cursor:pointer;color:inherit;font:inherit}
+.stat b{display:block;font-size:18px}
+.stat span{font-size:12px;color:var(--muted)}
+.stat.overdue b{color:var(--danger)} .stat.soon b{color:var(--warn)}
+.stat[aria-pressed="true"]{outline:2px solid var(--accent)}
+.controls{display:flex;gap:8px;margin-top:10px;overflow-x:auto;padding-bottom:2px}
+select,input,textarea{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px}
+.controls select{flex:0 0 auto}
+.search{flex:1 1 140px;min-width:120px}
+.list{display:flex;flex-direction:column;gap:10px}
+.group-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 2px 2px}
+.bill{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line);
+  padding:12px 14px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center}
+.bill.paid{opacity:.62}
+.bill .name{grid-row:1;grid-column:2;font-weight:600;overflow-wrap:anywhere}
+.bill .amt{grid-row:1;grid-column:3;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.bill .meta{grid-row:2;grid-column:2/4;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.bill .notes{grid-row:3;grid-column:2/4;font-size:13px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.check{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:transparent;cursor:pointer;grid-row:1/3;grid-column:1;
+  display:grid;place-items:center;color:var(--accent-ink);padding:0}
+.bill.paid .check{background:var(--ok);border-color:var(--ok)}
+.chip{background:var(--chip);border-radius:999px;padding:2px 8px;font-size:12px;color:var(--text)}
+.chip.overdue{background:var(--danger-bg);color:var(--danger);font-weight:600}
+.chip.soon{background:var(--warn-bg);color:var(--warn);font-weight:600}
+.chip.paid{background:var(--ok-bg);color:var(--ok);font-weight:600}
+.row-actions{grid-row:4;grid-column:2/4;display:flex;gap:6px;margin-top:4px}
+.link{background:none;border:none;color:var(--accent);font:inherit;font-size:14px;padding:6px 4px;cursor:pointer;min-height:36px}
+.link.danger{color:var(--danger)}
+.empty{text-align:center;color:var(--muted);padding:40px 16px}
+.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:6;background:var(--accent);color:var(--accent-ink);
+  border:none;border-radius:999px;padding:16px 22px;font:600 16px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer}
+dialog{border:none;border-radius:18px;padding:0;width:min(520px,calc(100vw - 24px));background:var(--card);color:var(--text)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+form.sheet{padding:18px 16px;display:grid;gap:12px}
+form.sheet h2{margin:0;font-size:19px}
+label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
+label input,label select,label textarea{width:100%}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.btn{font:600 15px system-ui,sans-serif;border-radius:10px;padding:12px 18px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;min-height:44px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.toggle{display:flex;align-items:center;gap:8px;color:var(--text);font-size:15px}
+.toggle input{width:22px;height:22px;min-height:0}
+footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+@media (min-width:700px){
+  .summary{grid-template-columns:repeat(3,minmax(0,200px))}
+  .bill{grid-template-columns:auto 1fr auto auto}
+  .bill .meta,.bill .notes{grid-column:2/3}
+  .row-actions{grid-column:3/5;grid-row:2/3;justify-content:flex-end;margin:0}
+  .bill .amt{grid-column:3/5}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Bills</h1>
+    <div class="summary">
+      <button class="stat overdue" data-quick="overdue" aria-pressed="false"><b id="sOverdue">0</b><span id="sOverdueAmt">Overdue</span></button>
+      <button class="stat soon" data-quick="soon" aria-pressed="false"><b id="sSoon">0</b><span id="sSoonAmt">Due in 7 days</span></button>
+      <button class="stat" data-quick="unpaid" aria-pressed="false"><b id="sUnpaid">$0</b><span>Total unpaid</span></button>
+    </div>
+    <div class="controls">
+      <input class="search" id="q" type="search" placeholder="Search" aria-label="Search bills">
+      <select id="fStatus" aria-label="Filter by status">
+        <option value="all">All statuses</option>
+        <option value="unpaid" selected>Unpaid</option>
+        <option value="paid">Paid</option>
+        <option value="overdue">Overdue</option>
+        <option value="soon">Due in 7 days</option>
+      </select>
+      <select id="fCat" aria-label="Filter by category"><option value="all">All categories</option></select>
+      <select id="sort" aria-label="Sort">
+        <option value="due-asc">Due date ↑</option>
+        <option value="due-desc">Due date ↓</option>
+        <option value="amt-desc">Amount ↓</option>
+        <option value="amt-asc">Amount ↑</option>
+        <option value="name">Name A–Z</option>
+        <option value="cat">Category</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="list" id="list"></div>
+</main>
+
+<footer>
+  <span style="flex-basis:100%">Saved on this device only. Export a backup now and then.</span>
+  <button class="link" id="exportBtn">Export backup</button>
+  <button class="link" id="importBtn">Import backup</button>
+  <input type="file" id="importFile" accept="application/json" hidden>
+</footer>
+
+<button class="fab" id="addBtn">+ Add bill</button>
+
+<dialog id="dlg">
+  <form class="sheet" id="form" method="dialog">
+    <h2 id="formTitle">Add bill</h2>
+    <label>Bill name<input name="name" required maxlength="80" autocomplete="off"></label>
+    <div class="two">
+      <label>Amount<input name="amount" type="number" inputmode="decimal" step="0.01" min="0" required></label>
+      <label>Due date<input name="due" type="date" required></label>
+    </div>
+    <label>Category<input name="category" list="catList" maxlength="40" placeholder="e.g. Utilities"></label>
+    <datalist id="catList"></datalist>
+    <label class="toggle"><input name="paid" type="checkbox"> Paid</label>
+    <label>Notes<textarea name="notes" rows="3" maxlength="1000"></textarea></label>
+    <div class="btns">
+      <button type="button" class="btn" id="cancelBtn">Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function(){
+  const KEY = 'billTracker.v1';
+  const DEFAULT_CATS = ['Housing','Utilities','Phone & Internet','Insurance','Subscriptions','Credit card','Loan','Transport','Other'];
+  const SOON_DAYS = 7;
+  let bills = load();
+  let editingId = null;
+
+  const $ = s => document.querySelector(s);
+  const money = n => Number(n||0).toLocaleString(undefined,{style:'currency',currency:'USD'});
+
+  function load(){
+    try{ const v = JSON.parse(localStorage.getItem(KEY)); return Array.isArray(v) ? v : []; }
+    catch(e){ return []; }
+  }
+  function save(){
+    try{ localStorage.setItem(KEY, JSON.stringify(bills)); }
+    catch(e){ alert('Could not save on this device. Try exporting a backup.'); }
+  }
+  function today(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+  function parseDate(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); }
+  function daysUntil(s){ return Math.round((parseDate(s) - today())/86400000); }
+  function state(b){
+    if(b.paid) return 'paid';
+    const d = daysUntil(b.due);
+    if(d < 0) return 'overdue';
+    if(d <= SOON_DAYS) return 'soon';
+    return 'later';
+  }
+  function dueLabel(b){
+    const d = daysUntil(b.due);
+    const dateStr = parseDate(b.due).toLocaleDateString(undefined,{month:'short',day:'numeric',year: parseDate(b.due).getFullYear()!==new Date().getFullYear()?'numeric':undefined});
+    if(b.paid) return dateStr;
+    if(d < 0) return `${dateStr} · ${-d} day${d===-1?'':'s'} late`;
+    if(d === 0) return `${dateStr} · today`;
+    if(d === 1) return `${dateStr} · tomorrow`;
+    return `${dateStr} · in ${d} days`;
+  }
+  function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function categories(){
+    const set = new Set(DEFAULT_CATS);
+    bills.forEach(b => b.category && set.add(b.category));
+    return [...set].sort((a,b)=>a.localeCompare(b));
+  }
+  function refreshCats(){
+    const cur = $('#fCat').value;
+    const used = [...new Set(bills.map(b=>b.category||'Uncategorized'))].sort((a,b)=>a.localeCompare(b));
+    $('#fCat').innerHTML = '<option value="all">All categories</option>' + used.map(c=>`<option>${esc(c)}</option>`).join('');
+    $('#fCat').value = used.includes(cur) ? cur : 'all';
+    $('#catList').innerHTML = categories().map(c=>`<option value="${esc(c)}">`).join('');
+  }
+
+  function render(){
+    refreshCats();
+    // summary
+    const overdue = bills.filter(b=>state(b)==='overdue');
+    const soon = bills.filter(b=>state(b)==='soon');
+    const unpaid = bills.filter(b=>!b.paid);
+    const sum = a => a.reduce((t,b)=>t+Number(b.amount||0),0);
+    $('#sOverdue').textContent = overdue.length;
+    $('#sOverdueAmt').textContent = overdue.length ? `Overdue · ${money(sum(overdue))}` : 'Overdue';
+    $('#sSoon').textContent = soon.length;
+    $('#sSoonAmt').textContent = soon.length ? `Due in 7 days · ${money(sum(soon))}` : 'Due in 7 days';
+    $('#sUnpaid').textContent = money(sum(unpaid));
+    const st = $('#fStatus').value;
+    document.querySelectorAll('.stat').forEach(el=>el.setAttribute('aria-pressed', String(el.dataset.quick===st)));
+
+    // filter
+    const q = $('#q').value.trim().toLowerCase();
+    const cat = $('#fCat').value;
+    let rows = bills.filter(b=>{
+      const s = state(b);
+      if(st==='paid' && !b.paid) return false;
+      if(st==='unpaid' && b.paid) return false;
+      if(st==='overdue' && s!=='overdue') return false;
+      if(st==='soon' && s!=='soon') return false;
+      if(cat!=='all' && (b.category||'Uncategorized')!==cat) return false;
+      if(q && !(`${b.name} ${b.category} ${b.notes}`.toLowerCase().includes(q))) return false;
+      return true;
+    });
+
+    // sort
+    const sort = $('#sort').value;
+    const cmp = {
+      'due-asc':(a,b)=>a.due.localeCompare(b.due),
+      'due-desc':(a,b)=>b.due.localeCompare(a.due),
+      'amt-desc':(a,b)=>b.amount-a.amount,
+      'amt-asc':(a,b)=>a.amount-b.amount,
+      'name':(a,b)=>a.name.localeCompare(b.name),
+      'cat':(a,b)=>(a.category||'').localeCompare(b.category||'')||a.due.localeCompare(b.due)
+    }[sort];
+    rows.sort(cmp);
+
+    const list = $('#list');
+    if(!bills.length){
+      list.innerHTML = `<div class="empty"><p><b>No bills yet.</b></p><p>Tap “+ Add bill” to add your first one.</p></div>`;
+      return;
+    }
+    if(!rows.length){
+      list.innerHTML = `<div class="empty">No bills match these filters.</div>`;
+      return;
+    }
+
+    // group by state when sorted by due date ascending
+    let html = '';
+    if(sort==='due-asc'){
+      const groups = [['overdue','Overdue'],['soon','Due soon'],['later','Later'],['paid','Paid']];
+      groups.forEach(([k,label])=>{
+        const g = rows.filter(b=>state(b)===k);
+        if(g.length) html += `<div class="group-title">${label}</div>` + g.map(card).join('');
+      });
+    } else {
+      html = rows.map(card).join('');
+    }
+    list.innerHTML = html;
+  }
+
+  function card(b){
+    const s = state(b);
+    const chip = s==='overdue' ? '<span class="chip overdue">Overdue</span>'
+               : s==='soon' ? '<span class="chip soon">Due soon</span>'
+               : s==='paid' ? '<span class="chip paid">Paid</span>' : '';
+    return `<div class="bill ${b.paid?'paid':''}" data-id="${b.id}">
+      <button class="check" data-act="toggle" aria-label="${b.paid?'Mark unpaid':'Mark paid'}" title="${b.paid?'Mark unpaid':'Mark paid'}">${b.paid?'✓':''}</button>
+      <div class="name">${esc(b.name)}</div>
+      <div class="amt">${money(b.amount)}</div>
+      <div class="meta">${chip}<span>${esc(dueLabel(b))}</span>${b.category?`<span class="chip">${esc(b.category)}</span>`:''}</div>
+      ${b.notes?`<div class="notes">${esc(b.notes)}</div>`:''}
+      <div class="row-actions">
+        <button class="link" data-act="edit">Edit</button>
+        <button class="link danger" data-act="delete">Delete</button>
+      </div>
+    </div>`;
+  }
+
+  function openForm(b){
+    editingId = b ? b.id : null;
+    const f = $('#form');
+    f.reset();
+    $('#formTitle').textContent = b ? 'Edit bill' : 'Add bill';
+    f.name.value = b?.name || '';
+    f.amount.value = b ? b.amount : '';
+    f.due.value = b?.due || new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+    f.category.value = b?.category || '';
+    f.paid.checked = !!b?.paid;
+    f.notes.value = b?.notes || '';
+    $('#dlg').showModal();
+    if(!b) setTimeout(()=>f.name.focus(),50);
+  }
+
+  $('#form').addEventListener('submit', e=>{
+    e.preventDefault();
+    const f = e.target;
+    const data = {
+      name: f.name.value.trim(),
+      amount: Math.round(parseFloat(f.amount.value)*100)/100,
+      due: f.due.value,
+      category: f.category.value.trim(),
+      paid: f.paid.checked,
+      notes: f.notes.value.trim()
+    };
+    if(!data.name || isNaN(data.amount) || !data.due) return;
+    if(editingId){
+      const i = bills.findIndex(b=>b.id===editingId);
+      bills[i] = {...bills[i], ...data, updated: Date.now()};
+    } else {
+      bills.push({id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random()), ...data, created: Date.now()});
+    }
+    save(); $('#dlg').close(); render();
+  });
+  $('#cancelBtn').addEventListener('click', ()=>$('#dlg').close());
+  $('#addBtn').addEventListener('click', ()=>openForm(null));
+
+  $('#list').addEventListener('click', e=>{
+    const btn = e.target.closest('[data-act]'); if(!btn) return;
+    const id = btn.closest('.bill').dataset.id;
+    const b = bills.find(x=>x.id===id); if(!b) return;
+    if(btn.dataset.act==='toggle'){ b.paid = !b.paid; save(); render(); }
+    if(btn.dataset.act==='edit'){ openForm(b); }
+    if(btn.dataset.act==='delete'){
+      if(confirm(`Delete “${b.name}”?`)){ bills = bills.filter(x=>x.id!==id); save(); render(); }
+    }
+  });
+
+  ['#q','#fStatus','#fCat','#sort'].forEach(s=>$(s).addEventListener('input', render));
+  document.querySelectorAll('.stat').forEach(el=>el.addEventListener('click', ()=>{
+    const v = el.dataset.quick;
+    $('#fStatus').value = $('#fStatus').value===v ? 'all' : v;
+    render();
+  }));
+
+  $('#exportBtn').addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify({version:1, exported:new Date().toISOString(), bills},null,2)],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `bills-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  });
+  $('#importBtn').addEventListener('click', ()=>$('#importFile').click());
+  $('#importFile').addEventListener('change', async e=>{
+    const file = e.target.files[0]; if(!file) return;
+    try{
+      const parsed = JSON.parse(await file.text());
+      const incoming = Array.isArray(parsed) ? parsed : parsed.bills;
+      if(!Array.isArray(incoming)) throw new Error('bad');
+      const clean = incoming.filter(b=>b && b.name && b.due).map(b=>({
+        id: String(b.id || Date.now()+Math.random()), name:String(b.name), amount:Number(b.amount)||0,
+        due:String(b.due).slice(0,10), category:String(b.category||''), paid:!!b.paid, notes:String(b.notes||'')
+      }));
+      if(confirm(`Import ${clean.length} bills? This replaces the ${bills.length} bills on this device.`)){
+        bills = clean; save(); render();
+      }
+    }catch(err){ alert('That file is not a valid bill backup.'); }
+    e.target.value = '';
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
