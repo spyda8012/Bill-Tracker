@@ -54,7 +54,7 @@
 html,body{margin:0}
 body{background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"SF Pro Text","Segoe UI",Roboto,sans-serif;
   -webkit-tap-highlight-color:transparent;
-  padding:env(safe-area-inset-top) 0 calc(var(--nav-h) + 40px + env(safe-area-inset-bottom));}
+  padding:var(--safe-area-inset-top, env(safe-area-inset-top)) 0 calc(var(--nav-h) + 40px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));}
 button{font:inherit;color:inherit}
 .ic{width:20px;height:20px;flex:none}
 .wrap{max-width:560px;margin:0 auto}
@@ -131,7 +131,7 @@ select,input,textarea{font:inherit;color:var(--text);background:var(--card);bord
 .note-foot{text-align:center;font-size:12px;color:var(--faint);margin:28px 0 0}
 
 /* tab bar */
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--card);border-top:1px solid var(--line);padding:0 8px env(safe-area-inset-bottom)}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--card);border-top:1px solid var(--line);padding:0 8px var(--safe-area-inset-bottom, env(safe-area-inset-bottom))}
 nav.tabs .in{display:grid;grid-template-columns:repeat(5,1fr);max-width:560px;margin:0 auto;align-items:center}
 nav.tabs button{background:none;border:none;font-size:11px;font-weight:600;color:var(--faint);height:var(--nav-h);cursor:pointer;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
@@ -183,7 +183,7 @@ nav.tabs .fab .ic{width:28px;height:28px}
 
 /* sheets */
 dialog{border:none;padding:0;margin:auto auto 0;width:100%;max-width:560px;max-height:92dvh;border-radius:26px 26px 0 0;background:var(--card);color:var(--text);
-  padding-bottom:env(safe-area-inset-bottom)}
+  padding-bottom:var(--safe-area-inset-bottom, env(safe-area-inset-bottom))}
 dialog::backdrop{background:var(--backdrop)}
 @media (min-width:600px){ dialog{margin:auto;border-radius:26px} }
 .sheet{padding:10px 20px 20px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
@@ -275,7 +275,7 @@ label.plain select{width:100%;background:var(--card2);border:none}
 .recap .left span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .recap-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .tot-recap{margin-top:-4px}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 24px + env(safe-area-inset-bottom));z-index:8;
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 24px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));z-index:8;
   background:var(--text);color:var(--bg);border-radius:14px;padding:12px 16px;display:flex;gap:12px;align-items:center;font-size:14px;
   box-shadow:0 6px 20px rgba(0,0,0,.25);width:max-content;max-width:calc(100vw - 32px)}
 .toast[hidden]{display:none}
@@ -526,6 +526,9 @@ label.plain select{width:100%;background:var(--card2);border:none}
   const KEY = 'billTracker.v1';
   const SET_KEY = 'billTracker.settings';
   const NOTIFIED_KEY = 'billTracker.notified';
+  // true inside the Android app (Capacitor); false in a normal browser
+  const NATIVE = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform() && Capacitor.nativePromise);
+  const nat = (plugin, method, opts) => Capacitor.nativePromise(plugin, method, opts || {});
   const DEFAULT_CATS = ['Housing','Utilities','Phone & Internet','Insurance','Subscriptions','Credit card','Loan','Transport','Other'];
   const SOON_DAYS = 7;
   const REPEATS = {
@@ -1056,6 +1059,10 @@ label.plain select{width:100%;background:var(--card2);border:none}
     document.querySelectorAll('[data-theme-opt]').forEach(el=>el.setAttribute('aria-pressed', String(el.dataset.themeOpt===(t||'auto'))));
     const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
     document.querySelector('meta[name="theme-color"]').setAttribute('content', bg || '#F4F5FA');
+    if(NATIVE){
+      const dark = t==='dark' || (t!=='light' && matchMedia('(prefers-color-scheme: dark)').matches);
+      nat('SystemBars', 'setStyle', {style: dark ? 'DARK' : 'LIGHT'}).catch(()=>{});
+    }
   }
   document.querySelectorAll('[data-theme-opt]').forEach(el=>el.addEventListener('click', ()=>{ settings.theme = el.dataset.themeOpt; saveSettings(); applyTheme(); }));
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
@@ -1220,6 +1227,7 @@ label.plain select{width:100%;background:var(--card2);border:none}
     try{ return await navigator.serviceWorker.ready; }catch(e){ return null; }
   }
   async function notify(force){
+    if(NATIVE) return force ? nativeNotifyNow() : false; // the app schedules real reminders instead, see scheduleNative()
     if(!('Notification' in window) || Notification.permission!=='granted') return false;
     const list = dueForReminder();
     if(!list.length) return false;
@@ -1235,8 +1243,45 @@ label.plain select{width:100%;background:var(--card2);border:none}
       return true;
     }catch(e){ return false; }
   }
+  // ----- Android app: real scheduled notifications -----
+  let natPerm = 'prompt';
+  async function nativePermission(){
+    try{ natPerm = (await nat('LocalNotifications', 'checkPermissions')).display; }catch(e){ natPerm = 'denied'; }
+    return natPerm;
+  }
+  async function nativeNotifyNow(){
+    if(await nativePermission() !== 'granted') return false;
+    const list = dueForReminder();
+    const {title, body} = list.length ? reminderText(list) : {title:'Bill reminders are on', body:'Reminders will look like this.'};
+    try{ await nat('LocalNotifications', 'schedule', {notifications:[{id:1, title, body, largeBody:body, isExactNotification:false}]}); return true; }
+    catch(e){ return false; }
+  }
+  // Every time bills change: clear the old reminders and set one for 9 AM N days before each unpaid bill, and 9 AM on the due date.
+  let schedTimer = 0;
+  function scheduleNative(){ clearTimeout(schedTimer); schedTimer = setTimeout(doScheduleNative, 400); }
+  async function doScheduleNative(){
+    if(await nativePermission() !== 'granted') return;
+    try{
+      const pending = (await nat('LocalNotifications', 'getPending')).notifications || [];
+      if(pending.length) await nat('LocalNotifications', 'cancel', {notifications: pending.map(p=>({id: Number(p.id)}))});
+      const n = Number(settings.remindDays)||3, now = Date.now(), out = [];
+      const at9 = (dateStr, minusDays) => { const d = parseDate(dateStr); d.setDate(d.getDate()-minusDays); d.setHours(9,0,0,0); return d; };
+      bills.filter(b=>!b.paid && !b.autopay).sort((a,b)=>a.due.localeCompare(b.due)).forEach(b=>{
+        [[n, `${b.name} is due in ${n} day${n>1?'s':''}`], [0, `${b.name} is due today`]].forEach(([before, title])=>{
+          const when = at9(b.due, before);
+          if(when.getTime() <= now) return;
+          const body = `${money(b.amount)}${b.category ? ' · ' + b.category : ''}${b.link ? ' · tap Pay in the app' : ''}`;
+          out.push({id: 1000 + out.length, title, body, schedule:{at: when.toISOString(), allowWhileIdle:true}, isExactNotification:false});
+        });
+      });
+      out.sort((a,b)=>a.schedule.at.localeCompare(b.schedule.at));
+      if(out.length) await nat('LocalNotifications', 'schedule', {notifications: out.slice(0, 200)});
+    }catch(e){ console.warn('reminders', e); }
+  }
+
   // hand the upcoming bills to the service worker so it can remind in the background where the browser allows it
   async function writeReminderData(){
+    if(NATIVE){ scheduleNative(); return; }
     if(!('caches' in window)) return;
     try{
       const c = await caches.open('bill-reminders');
@@ -1256,9 +1301,18 @@ label.plain select{width:100%;background:var(--card2);border:none}
   }
   function isStandalone(){ return matchMedia('(display-mode: standalone)').matches || navigator.standalone===true; }
   function isIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1); }
-  function renderNotifStatus(){
+  async function renderNotifStatus(){
     const s = $('#notifStatus'), btn = $('#notifBtn');
     s.className = 'status-line';
+    if(NATIVE){
+      $('#notifHelp').textContent = `The app reminds you at 9 AM ${Number(settings.remindDays)||3} day(s) before each unpaid bill and again on the due date, even when it is closed. Autopay bills are skipped.`;
+      const p = await nativePermission();
+      btn.disabled = false;
+      if(p==='granted'){ btn.textContent = 'Send a test notification'; s.textContent = 'Reminders are on.'; s.classList.add('ok'); }
+      else if(p==='denied'){ btn.textContent = 'Turn on notifications'; s.textContent = 'Notifications are off for this app. If nothing happens when you tap the button, turn them on in your phone Settings, Apps, Bill Tracker, Notifications.'; s.classList.add('bad'); }
+      else { btn.textContent = 'Turn on notifications'; s.textContent = ''; }
+      return;
+    }
     if(!('Notification' in window)){
       btn.disabled = true;
       s.textContent = isIOS() && !isStandalone() ? 'Add this app to your home screen first (Share, then Add to Home Screen), then open it from there.' : 'This browser can\'t show notifications. Use calendar alerts instead.';
@@ -1270,6 +1324,13 @@ label.plain select{width:100%;background:var(--card2);border:none}
     else { btn.textContent = 'Turn on notifications'; s.textContent = ''; }
   }
   $('#notifBtn').addEventListener('click', async ()=>{
+    if(NATIVE){
+      if(await nativePermission()==='granted'){ nativeNotifyNow(); return; }
+      try{ natPerm = (await nat('LocalNotifications', 'requestPermissions')).display; }catch(e){}
+      if(natPerm==='granted'){ settings.setUp = true; saveSettings(); nativeNotifyNow(); render(); }
+      renderNotifStatus();
+      return;
+    }
     if(Notification.permission==='granted'){
       const sent = await notify(true);
       if(!sent){
@@ -1283,7 +1344,7 @@ label.plain select{width:100%;background:var(--card2);border:none}
     if(p==='granted'){ settings.setUp = true; saveSettings(); registerPeriodic(); notify(true); render(); }
     renderNotifStatus();
   });
-  $('#remDays').addEventListener('input', e=>{ settings.remindDays = Number(e.target.value); saveSettings(); });
+  $('#remDays').addEventListener('input', e=>{ settings.remindDays = Number(e.target.value); saveSettings(); if(NATIVE) renderNotifStatus(); });
   function openSettings(){ $('#remDays').value = String(settings.remindDays); renderNotifStatus(); $('#setDlg').showModal(); }
   $('#settingsBtn').addEventListener('click', openSettings);
   $('#setClose').addEventListener('click', ()=>$('#setDlg').close());
@@ -1341,10 +1402,22 @@ label.plain select{width:100%;background:var(--card2);border:none}
   });
 
   function download(blob, name){
+    if(NATIVE){ nativeSave(blob, name); return; }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  }
+
+  // Android app: save the file, then open the share sheet so it can go to Drive, Files, email, etc.
+  async function nativeSave(blob, name){
+    try{
+      const data = await new Promise((ok, bad)=>{ const r = new FileReader(); r.onload = ()=>ok(String(r.result).split(',')[1]); r.onerror = bad; r.readAsDataURL(blob); });
+      const {uri} = await nat('Filesystem', 'writeFile', {path: name, data, directory: 'CACHE'});
+      await nat('Share', 'share', {title: name, files: [uri], dialogTitle: 'Save or send ' + name});
+    }catch(e){
+      if(!/cancel/i.test(String(e && (e.message || e)))) alert('Could not save the file: ' + (e && e.message || e));
+    }
   }
 
   // ---------- CSV export ----------
@@ -1388,7 +1461,16 @@ label.plain select{width:100%;background:var(--card2);border:none}
   if(runAutopay()) save(); else writeReminderData();
   render();
   maybeShowRecap();
-  if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  if(NATIVE){
+    $('#importFile').removeAttribute('accept'); // some Android file pickers grey out .json files otherwise
+    $('#icsBtn').previousElementSibling.textContent = 'You can also add your unpaid bills to your phone calendar with an alert at 9 AM. Repeating bills repeat there too. Share the file to your calendar app, or save it and open it.';
+    // Android back button closes the open sheet first, then leaves the app
+    Capacitor.addListener('App', 'backButton', ()=>{
+      const open = [...document.querySelectorAll('dialog[open]')].pop();
+      if(open) open.close(); else nat('App', 'exitApp').catch(()=>{});
+    });
+    scheduleNative();
+  } else if('serviceWorker' in navigator && location.protocol.startsWith('http')){
     navigator.serviceWorker.register('sw.js').then(()=>{ registerPeriodic(); notify(false); }).catch(()=>notify(false));
   } else notify(false);
   document.addEventListener('visibilitychange', ()=>{
