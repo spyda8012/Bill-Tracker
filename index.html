@@ -259,6 +259,22 @@ label.plain select{width:100%;background:var(--card2);border:none}
 .cat-row .sub{grid-column:2/4;font-size:12px;color:var(--muted)}
 .bar{grid-column:2/4;height:6px;border-radius:999px;background:var(--card2);overflow:hidden}
 .bar i{display:block;height:100%;background:var(--accent);border-radius:999px}
+/* month wrap-up */
+.recap .hero{margin-top:0;box-shadow:none}
+.recap .eyebrow{font-size:12px;font-weight:600;color:var(--muted);text-align:center;text-transform:uppercase;letter-spacing:.06em;margin:-6px 0 0}
+.recap .cmp{font-size:13px;color:var(--muted);text-align:center;margin:0}
+.recap .cmp b{color:var(--text)}
+.recap .cat-rows{max-height:none;overflow:visible}
+.recap-scroll:focus{outline:none}
+.recap-scroll{display:grid;gap:12px;max-height:56dvh;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.recap .left{display:grid;gap:6px}
+.recap .left div{display:flex;justify-content:space-between;gap:8px;font-size:14px;background:var(--card2);border-radius:12px;padding:10px 12px}
+.recap .left b{color:var(--danger);}
+.recap .left.upcoming b{color:var(--text)}
+.recap .left b{font-variant-numeric:tabular-nums}
+.recap .left span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recap-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tot-recap{margin-top:-4px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 24px + env(safe-area-inset-bottom));z-index:8;
   background:var(--text);color:var(--bg);border-radius:14px;padding:12px 16px;display:flex;gap:12px;align-items:center;font-size:14px;
   box-shadow:0 6px 20px rgba(0,0,0,.25);width:max-content;max-width:calc(100vw - 32px)}
@@ -431,7 +447,39 @@ label.plain select{width:100%;background:var(--card2);border:none}
       <div><b id="tLeft">$0</b><span>Still to pay</span></div>
     </div>
     <div class="cat-rows" id="catRows"></div>
+    <button type="button" class="btn wide tot-recap" id="totRecap">See month summary</button>
     <button type="button" class="btn primary wide" id="totClose">Done</button>
+  </div>
+</dialog>
+
+<dialog id="recapDlg" aria-labelledby="recapTitle">
+  <div class="sheet recap">
+    <h2 id="recapTitle">October summary</h2>
+    <p class="eyebrow" id="recapSub">Month in review</p>
+    <div class="recap-scroll">
+      <div class="hero">
+        <small id="rHeroLbl">You paid</small>
+        <div class="big" id="rPaid">$0</div>
+        <div class="prog"><i id="rProg"></i></div>
+        <div class="meta"><span id="rOf"></span><span id="rCount"></span></div>
+      </div>
+      <p class="cmp" id="rCmp" hidden></p>
+      <div class="tot-head">
+        <div><b id="rDue">$0</b><span>Total due</span></div>
+        <div><b id="rOnTime">0</b><span>Paid on time</span></div>
+        <div><b id="rLeft">$0</b><span id="rLeftLbl">Left unpaid</span></div>
+      </div>
+      <h3>By category</h3>
+      <div class="cat-rows" id="rCats"></div>
+      <div id="rLeftWrap" hidden>
+        <h3 id="rLeftHead">Still unpaid</h3>
+        <div class="left" id="rLeftList"></div>
+      </div>
+    </div>
+    <div class="recap-btns">
+      <button type="button" class="btn" id="recapTotals">Open Totals</button>
+      <button type="button" class="btn primary" id="recapClose">Done</button>
+    </div>
   </div>
 </dialog>
 
@@ -1057,6 +1105,98 @@ label.plain select{width:100%;background:var(--card2);border:none}
     const d = new Date(); viewMonth = {y:d.getFullYear(), m:d.getMonth()};
     renderTotals(); $('#totDlg').showModal();
   });
+  $('#totRecap').addEventListener('click', ()=>{ $('#totDlg').close(); openRecap(viewMonth.y, viewMonth.m); });
+
+  // ---------- end-of-month summary ----------
+  // Pops up once, the first time the app is opened after a month ends. It can be reopened from Totals.
+  const mKey = (y,m) => `${y}-${String(m+1).padStart(2,'0')}`;
+  const paidAmtOf = b => b.paidAmount!=null ? Number(b.paidAmount) : Number(b.amount||0);
+  function monthStats(y, m){
+    const key = mKey(y,m);
+    const inMonth = bills.filter(b=>String(b.due).slice(0,7)===key);
+    const due = inMonth.reduce((t,b)=>t+Number(b.amount||0),0);
+    const paidBills = inMonth.filter(b=>b.paid);
+    const paid = paidBills.reduce((t,b)=>t+paidAmtOf(b),0);
+    const unpaid = inMonth.filter(b=>!b.paid).sort((a,b)=>b.amount-a.amount);
+    const left = unpaid.reduce((t,b)=>t+Number(b.amount||0),0);
+    const onTime = paidBills.filter(b=>!b.paidOn || b.paidOn<=b.due).length;
+    return {inMonth, due, paid, paidBills, unpaid, left, onTime};
+  }
+  let recapMonth = null;
+  function openRecap(y, m){
+    recapMonth = {y, m};
+    const st = monthStats(y, m);
+    const d = new Date(y, m, 1), now = new Date();
+    const isCurrent = y===now.getFullYear() && m===now.getMonth();
+    const future = d > now;
+    const name = d.toLocaleDateString(undefined, {month:'long'});
+    const nameY = d.toLocaleDateString(undefined, {month:'long', year:'numeric'});
+    $('#recapTitle').textContent = `${name} summary`;
+    $('#recapSub').textContent = isCurrent ? `${nameY} so far` : future ? `${nameY} (coming up)` : `${nameY} in review`;
+    $('#rHeroLbl').textContent = future ? 'Paid early' : isCurrent ? 'Paid so far' : `You paid in ${name}`;
+    const cents = money(st.paid).match(/^(.*?)([.,]\d{2})$/);
+    $('#rPaid').innerHTML = cents ? `${esc(cents[1])}<span>${esc(cents[2])}</span>` : esc(money(st.paid));
+    $('#rProg').style.width = (st.due>0 ? Math.min(100, st.paid/st.due*100) : 0) + '%';
+    $('#rOf').textContent = st.due>0 ? `of ${money(st.due)} due` : 'Nothing was due';
+    $('#rCount').textContent = st.inMonth.length ? `${st.paidBills.length} of ${st.inMonth.length} bill${st.inMonth.length>1?'s':''} paid` : '';
+    $('#rDue').textContent = money(st.due);
+    $('#rOnTime').textContent = st.paidBills.length ? `${st.onTime} of ${st.paidBills.length}` : '0';
+    $('#rLeft').textContent = money(st.left);
+    $('#rLeftLbl').textContent = isCurrent || future ? 'Still to pay' : 'Left unpaid';
+
+    // compare with the month before
+    const pd = new Date(y, m-1, 1), prev = monthStats(pd.getFullYear(), pd.getMonth());
+    const cmp = $('#rCmp');
+    if(prev.paid>0 && st.paid>0 && !isCurrent && !future){
+      const diff = st.paid - prev.paid, pName = pd.toLocaleDateString(undefined,{month:'long'});
+      cmp.innerHTML = Math.abs(diff) < 0.005 ? `Same as ${esc(pName)}.`
+        : `<b>${esc(money(Math.abs(diff)))} ${diff>0?'more':'less'}</b> than ${esc(pName)} (${esc(money(prev.paid))}).`;
+      cmp.hidden = false;
+    } else cmp.hidden = true;
+
+    // by category: what was paid, out of what was due
+    const byCat = new Map();
+    st.inMonth.forEach(b=>{
+      const c = b.category || 'Uncategorized';
+      const r = byCat.get(c) || {due:0, paid:0, n:0};
+      r.due += Number(b.amount||0); r.n++; if(b.paid) r.paid += paidAmtOf(b);
+      byCat.set(c, r);
+    });
+    const base = Math.max(st.paid, 0.0001);
+    const rows = [...byCat].sort((a,b)=>(b[1].paid-a[1].paid) || (b[1].due-a[1].due));
+    $('#rCats').innerHTML = rows.length ? rows.map(([c,r])=>{
+      const pct = st.paid>0 ? Math.round(r.paid/base*1000)/10 : 0;
+      const left = r.due - (r.paid>=r.due ? r.due : r.paid);
+      return `<div class="cat-row">${catAv(c==='Uncategorized'?'':c)}
+        <span>${esc(c)}</span><span class="amt">${money(r.paid)}</span>
+        <div class="bar" role="img" aria-label="${pct}% of what you paid"><i style="width:${pct}%"></i></div>
+        <span class="sub">${pct}% of spending · ${r.n} bill${r.n===1?'':'s'}${r.paid<r.due-0.005?` · ${money(r.due - r.paid)} unpaid`:''}</span>
+      </div>`;
+    }).join('') : `<div class="empty" style="padding:16px">No bills were due in ${esc(name)}.</div>`;
+
+    $('#rLeftWrap').hidden = !st.unpaid.length;
+    $('#rLeftHead').textContent = isCurrent || future ? 'Still to pay' : 'Not marked paid';
+    $('#rLeftList').innerHTML = st.unpaid.map(b=>`<div><span>${esc(b.name)} · due ${esc(fmtDate(b.due))}</span><b>${money(b.amount)}</b></div>`).join('');
+    $('#recapDlg').scrollTop = 0; $('.recap-scroll').scrollTop = 0;
+    $('#rLeftList').classList.toggle('upcoming', isCurrent || future);
+    if(!$('#recapDlg').open){ $('#recapDlg').showModal(); document.activeElement?.blur?.(); }
+  }
+  function maybeShowRecap(){
+    const now = new Date(), pd = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    const key = mKey(pd.getFullYear(), pd.getMonth());
+    if(settings.recapSeen === key) return;
+    if(document.querySelector('dialog[open]')) return;   // don't interrupt something the user is doing
+    if(!bills.some(b=>String(b.due).slice(0,7)===key)){ settings.recapSeen = key; saveSettings(); return; }
+    settings.recapSeen = key; saveSettings();
+    openRecap(pd.getFullYear(), pd.getMonth());
+  }
+  $('#recapClose').addEventListener('click', ()=>$('#recapDlg').close());
+  $('#recapTotals').addEventListener('click', ()=>{
+    $('#recapDlg').close();
+    if(recapMonth) viewMonth = {...recapMonth};
+    renderTotals(); $('#totDlg').showModal();
+  });
+
   $('#mPrev').addEventListener('click', ()=>shiftMonth(-1));
   $('#mNext').addEventListener('click', ()=>shiftMonth(1));
   $('#totClose').addEventListener('click', ()=>$('#totDlg').close());
@@ -1247,13 +1387,14 @@ label.plain select{width:100%;background:var(--card2);border:none}
   // ---------- start ----------
   if(runAutopay()) save(); else writeReminderData();
   render();
+  maybeShowRecap();
   if('serviceWorker' in navigator && location.protocol.startsWith('http')){
     navigator.serviceWorker.register('sw.js').then(()=>{ registerPeriodic(); notify(false); }).catch(()=>notify(false));
   } else notify(false);
   document.addEventListener('visibilitychange', ()=>{
     if(document.visibilityState!=='visible') return;
     if(runAutopay()) save();
-    render(); notify(false);
+    render(); notify(false); maybeShowRecap();
   });
 })();
 </script>
