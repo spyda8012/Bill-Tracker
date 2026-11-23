@@ -5,28 +5,51 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f6f5c">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bills">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
 <title>Bill Tracker</title>
 <style>
 :root{
   --bg:#f5f6f4; --card:#ffffff; --text:#1c1f1d; --muted:#6b726e; --line:#e2e5e2;
   --accent:#1f6f5c; --accent-ink:#ffffff; --danger:#b3261e; --warn:#a15c00; --ok:#2e7d32;
-  --danger-bg:#fdecea; --warn-bg:#fff4e0; --ok-bg:#e8f5e9; --chip:#eef1ee;
+  --danger-bg:#fdecea; --warn-bg:#fff4e0; --ok-bg:#e8f5e9; --chip:#eef1ee; --accent-bg:#e3f1ec; --info:#2b5fb3;
   --radius:14px; --shadow:0 1px 2px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
+  --nav-h:60px;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#121413; --card:#1c1f1e; --text:#e8ebe9; --muted:#9aa29e; --line:#2c312f;
     --accent:#4fb39a; --accent-ink:#0b1a16; --danger:#f2847c; --warn:#f0b35a; --ok:#7cc983;
-    --danger-bg:#3a1d1b; --warn-bg:#3a2c14; --ok-bg:#1b3320; --chip:#262a28;
+    --danger-bg:#3a1d1b; --warn-bg:#3a2c14; --ok-bg:#1b3320; --chip:#262a28; --accent-bg:#183029; --info:#7aa7f0;
     --shadow:none;
   }
 }
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  padding:env(safe-area-inset-top) 0 calc(88px + env(safe-area-inset-bottom));}
+  padding:env(safe-area-inset-top) 0 calc(var(--nav-h) + 96px + env(safe-area-inset-bottom));}
 header{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 16px 8px;border-bottom:1px solid var(--line)}
-h1{font-size:22px;margin:0 0 10px}
+h1{font-size:22px;margin:0}
+.titlebar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.titlebar .links{display:flex;gap:4px}
+.titlebar .link{font-weight:600}
+.month-nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.month-nav b{font-size:16px}
+.month-nav .btn{padding:8px 14px;min-width:44px}
+.tot-head{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tot-head div{background:var(--bg);border-radius:10px;padding:8px 10px}
+.tot-head b{display:block;font-variant-numeric:tabular-nums}
+.tot-head span{font-size:12px;color:var(--muted)}
+.cat-rows{display:grid;gap:12px;max-height:50vh;overflow-y:auto}
+.cat-row{display:grid;grid-template-columns:1fr auto;gap:4px 8px;font-size:15px}
+.cat-row .amt{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.cat-row .sub{grid-column:1/3;font-size:12px;color:var(--muted)}
+.bar{grid-column:1/3;height:8px;border-radius:999px;background:var(--chip);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:999px}
 main{max-width:760px;margin:0 auto;padding:12px 16px}
 .wrap{max-width:760px;margin:0 auto}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -40,6 +63,8 @@ main{max-width:760px;margin:0 auto;padding:12px 16px}
 select,input,textarea{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px}
 .controls select{flex:0 0 auto}
 .search{flex:1 1 140px;min-width:120px}
+body:not([data-view="list"]) .list-only{display:none}
+.view[hidden]{display:none}
 .list{display:flex;flex-direction:column;gap:10px}
 .group-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 2px 2px}
 .bill{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line);
@@ -56,24 +81,83 @@ select,input,textarea{font:inherit;color:var(--text);background:var(--card);bord
 .chip.overdue{background:var(--danger-bg);color:var(--danger);font-weight:600}
 .chip.soon{background:var(--warn-bg);color:var(--warn);font-weight:600}
 .chip.paid{background:var(--ok-bg);color:var(--ok);font-weight:600}
-.row-actions{grid-row:4;grid-column:2/4;display:flex;gap:6px;margin-top:4px}
-.link{background:none;border:none;color:var(--accent);font:inherit;font-size:14px;padding:6px 4px;cursor:pointer;min-height:36px}
+.chip.auto{background:var(--accent-bg);color:var(--accent);font-weight:600}
+.row-actions{grid-row:4;grid-column:2/4;display:flex;flex-wrap:wrap;gap:2px 6px;margin-top:4px}
+.link{background:none;border:none;color:var(--accent);font:inherit;font-size:14px;padding:6px 4px;cursor:pointer;min-height:36px;text-decoration:none;display:inline-flex;align-items:center}
 .link.danger{color:var(--danger)}
+.link.pay{font-weight:700}
 .empty{text-align:center;color:var(--muted);padding:40px 16px}
-.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:6;background:var(--accent);color:var(--accent-ink);
+.banner{background:var(--accent-bg);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.banner p{margin:0;flex:1 1 200px}
+.banner .btn{padding:8px 12px;min-height:36px;font-size:14px}
+.fab{position:fixed;right:16px;bottom:calc(var(--nav-h) + 14px + env(safe-area-inset-bottom));z-index:6;background:var(--accent);color:var(--accent-ink);
   border:none;border-radius:999px;padding:16px 22px;font:600 16px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer}
-dialog{border:none;border-radius:18px;padding:0;width:min(520px,calc(100vw - 24px));background:var(--card);color:var(--text)}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--card);border-top:1px solid var(--line);
+  padding:0 8px env(safe-area-inset-bottom);display:flex;justify-content:center}
+nav.tabs .in{display:grid;grid-template-columns:repeat(3,1fr);width:100%;max-width:520px}
+nav.tabs button{background:none;border:none;font:600 13px system-ui,sans-serif;color:var(--muted);height:var(--nav-h);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current="page"]{color:var(--accent)}
+/* calendar */
+.cal{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px}
+.cal .month-nav{margin-bottom:8px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.cal-grid .wd{font-size:12px;color:var(--muted);text-align:center;padding:4px 0;font-weight:600}
+.day{background:none;border:none;border-radius:10px;min-height:52px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;color:var(--text);font:inherit;font-size:15px}
+.day.out{visibility:hidden}
+.day.today .n{background:var(--accent);color:var(--accent-ink);border-radius:999px;min-width:26px;padding:0 4px}
+.day[aria-pressed="true"]{background:var(--chip)}
+.day .dots{display:flex;gap:3px;flex-wrap:wrap;justify-content:center;max-width:100%}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.dot.overdue{background:var(--danger)} .dot.soon{background:var(--warn)} .dot.later{background:var(--info)} .dot.paid{background:var(--ok)}
+.dot.proj{background:transparent;border:1.5px dashed var(--muted)}
+.day .sum{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1}
+.cal-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px;padding:0 4px}
+.cal-legend span{display:inline-flex;align-items:center;gap:5px}
+.day-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:16px 2px 8px}
+.day-head h3{margin:0;font-size:16px}
+.day-head span{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.proj-row{border:1.5px dashed var(--line);border-radius:var(--radius);padding:10px 14px;display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:15px}
+/* history */
+.hist-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.hist-top select{flex:1 1 180px}
+.hist-sum{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:6px}
+.hist-sum div{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;box-shadow:var(--shadow)}
+.hist-sum b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.hist-sum span{font-size:12px;color:var(--muted)}
+.pay-row{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;display:grid;grid-template-columns:1fr auto;gap:2px 10px}
+.pay-row .nm{font-weight:600;overflow-wrap:anywhere}
+.pay-row .am{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.pay-row .sub{grid-column:1/3;font-size:13px;color:var(--muted)}
+.pay-row .late{color:var(--danger)}
+.month-total{font-variant-numeric:tabular-nums;text-transform:none;letter-spacing:0;float:right}
+/* dialogs */
+dialog{border:none;border-radius:18px;padding:0;width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 24px);background:var(--card);color:var(--text)}
 dialog::backdrop{background:rgba(0,0,0,.45)}
-form.sheet{padding:18px 16px;display:grid;gap:12px}
-form.sheet h2{margin:0;font-size:19px}
+form.sheet,.sheet{padding:18px 16px;display:grid;gap:12px}
+.sheet h2{margin:0;font-size:19px}
+.sheet h3{margin:6px 0 0;font-size:16px}
+.sheet p.help{margin:0;font-size:13px;color:var(--muted)}
 label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
 label input,label select,label textarea{width:100%}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.paid-fields[hidden]{display:none}
+.btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;flex-wrap:wrap}
 .btn{font:600 15px system-ui,sans-serif;border-radius:10px;padding:12px 18px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;min-height:44px}
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.wide{width:100%}
 .toggle{display:flex;align-items:center;gap:8px;color:var(--text);font-size:15px}
-.toggle input{width:22px;height:22px;min-height:0}
+.toggle input{width:22px;height:22px;min-height:0;flex:0 0 auto}
+.toggle small{color:var(--muted);font-size:13px}
+.status-line{font-size:13px;color:var(--muted)}
+.status-line.ok{color:var(--ok)} .status-line.bad{color:var(--danger)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 84px + env(safe-area-inset-bottom));z-index:8;
+  background:var(--text);color:var(--bg);border-radius:12px;padding:10px 14px;display:flex;gap:12px;align-items:center;font-size:14px;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);width:max-content;max-width:calc(100vw - 32px)}
+.toast[hidden]{display:none}
+.toast button{background:none;border:none;color:var(--bg);font:700 14px system-ui,sans-serif;text-decoration:underline;cursor:pointer;padding:6px 2px}
 footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
 @media (min-width:700px){
   .summary{grid-template-columns:repeat(3,minmax(0,200px))}
@@ -81,19 +165,23 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
   .bill .meta,.bill .notes{grid-column:2/3}
   .row-actions{grid-column:3/5;grid-row:2/3;justify-content:flex-end;margin:0}
   .bill .amt{grid-column:3/5}
+  .day{min-height:72px}
+  .hist-sum{grid-template-columns:repeat(2,minmax(0,220px))}
 }
 </style>
 </head>
-<body>
+<body data-view="list">
 <header>
   <div class="wrap">
-    <h1>Bills</h1>
-    <div class="summary">
+    <div class="titlebar"><h1 id="viewTitle">Bills</h1>
+      <div class="links"><button class="link" id="totalsBtn">Totals</button><button class="link" id="settingsBtn">Reminders</button></div>
+    </div>
+    <div class="summary list-only">
       <button class="stat overdue" data-quick="overdue" aria-pressed="false"><b id="sOverdue">0</b><span id="sOverdueAmt">Overdue</span></button>
       <button class="stat soon" data-quick="soon" aria-pressed="false"><b id="sSoon">0</b><span id="sSoonAmt">Due in 7 days</span></button>
       <button class="stat" data-quick="unpaid" aria-pressed="false"><b id="sUnpaid">$0</b><span>Total unpaid</span></button>
     </div>
-    <div class="controls">
+    <div class="controls list-only">
       <input class="search" id="q" type="search" placeholder="Search" aria-label="Search bills">
       <select id="fStatus" aria-label="Filter by status">
         <option value="all">All statuses</option>
@@ -101,6 +189,8 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
         <option value="paid">Paid</option>
         <option value="overdue">Overdue</option>
         <option value="soon">Due in 7 days</option>
+        <option value="recurring">Recurring</option>
+        <option value="autopay">Autopay</option>
       </select>
       <select id="fCat" aria-label="Filter by category"><option value="all">All categories</option></select>
       <select id="sort" aria-label="Sort">
@@ -116,17 +206,70 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
 </header>
 
 <main>
-  <div class="list" id="list"></div>
+  <div class="banner" id="remBanner" hidden>
+    <p>Get a reminder a few days before each bill is due.</p>
+    <button class="btn primary" id="remBannerOn">Set up reminders</button>
+    <button class="btn" id="remBannerNo">Not now</button>
+  </div>
+
+  <section class="view" id="viewList">
+    <div class="list" id="list"></div>
+  </section>
+
+  <section class="view" id="viewCal" hidden>
+    <div class="cal">
+      <div class="month-nav">
+        <button type="button" class="btn" id="cPrev" aria-label="Previous month">‹</button>
+        <b id="cLabel"></b>
+        <button type="button" class="btn" id="cNext" aria-label="Next month">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-legend">
+        <span><i class="dot overdue"></i>Overdue</span><span><i class="dot soon"></i>Due soon</span>
+        <span><i class="dot later"></i>Upcoming</span><span><i class="dot paid"></i>Paid</span><span><i class="dot proj"></i>Expected repeat</span>
+      </div>
+    </div>
+    <div class="day-head"><h3 id="dayTitle"></h3><span id="dayTotal"></span></div>
+    <div class="list" id="dayList"></div>
+  </section>
+
+  <section class="view" id="viewHist" hidden>
+    <div class="hist-top">
+      <select id="hBill" aria-label="Show payments for"><option value="all">All bills</option></select>
+      <select id="hRange" aria-label="Time range">
+        <option value="12">Last 12 months</option>
+        <option value="3">Last 3 months</option>
+        <option value="all">All time</option>
+      </select>
+    </div>
+    <div class="hist-sum">
+      <div><b id="hTotal">$0</b><span id="hTotalLbl">Paid</span></div>
+      <div><b id="hCount">0</b><span id="hCountLbl">Payments</span></div>
+    </div>
+    <div class="list" id="histList"></div>
+  </section>
 </main>
 
 <footer>
   <span style="flex-basis:100%">Saved on this device only. Export a backup now and then.</span>
   <button class="link" id="exportBtn">Export backup</button>
   <button class="link" id="importBtn">Import backup</button>
-  <input type="file" id="importFile" accept="application/json" hidden>
+  <button class="link" id="csvBtn">Export CSV (spreadsheet)</button>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
 </footer>
 
 <button class="fab" id="addBtn">+ Add bill</button>
+
+<nav class="tabs" aria-label="Views"><div class="in">
+  <button data-view="list" aria-current="page">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Bills</button>
+  <button data-view="cal">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Calendar</button>
+  <button data-view="hist">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>History</button>
+</div></nav>
+
+<div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button id="toastUndo">Undo</button></div>
 
 <dialog id="dlg">
   <form class="sheet" id="form" method="dialog">
@@ -136,10 +279,28 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
       <label>Amount<input name="amount" type="number" inputmode="decimal" step="0.01" min="0" required></label>
       <label>Due date<input name="due" type="date" required></label>
     </div>
-    <label>Category<input name="category" list="catList" maxlength="40" placeholder="e.g. Utilities"></label>
+    <div class="two">
+      <label>Category<input name="category" list="catList" maxlength="40" placeholder="e.g. Utilities"></label>
+      <label>Repeats<select name="repeat">
+        <option value="none">Doesn't repeat</option>
+        <option value="weekly">Every week</option>
+        <option value="biweekly">Every 2 weeks</option>
+        <option value="monthly">Every month</option>
+        <option value="quarterly">Every 3 months</option>
+        <option value="semiannual">Every 6 months</option>
+        <option value="yearly">Every year</option>
+      </select></label>
+    </div>
     <datalist id="catList"></datalist>
+    <label>Payment link<input name="link" type="text" inputmode="url" autocapitalize="off" spellcheck="false" maxlength="500" placeholder="https://… biller's payment page" autocomplete="off"></label>
+    <label class="toggle"><input name="autopay" type="checkbox"> <span>Autopay<br><small>Marks itself paid on the due date</small></span></label>
     <label class="toggle"><input name="paid" type="checkbox"> Paid</label>
+    <div class="two paid-fields" id="paidFields" hidden>
+      <label>Paid on<input name="paidOn" type="date"></label>
+      <label>Amount paid<input name="paidAmount" type="number" inputmode="decimal" step="0.01" min="0"></label>
+    </div>
     <label>Notes<textarea name="notes" rows="3" maxlength="1000"></textarea></label>
+    <p class="help" id="repeatHelp" hidden>When you mark this paid, the next one is added automatically.</p>
     <div class="btns">
       <button type="button" class="btn" id="cancelBtn">Cancel</button>
       <button type="submit" class="btn primary">Save</button>
@@ -147,28 +308,124 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
   </form>
 </dialog>
 
+<dialog id="totDlg" aria-labelledby="totTitle">
+  <div class="sheet">
+    <h2 id="totTitle">Monthly totals by category</h2>
+    <div class="month-nav">
+      <button type="button" class="btn" id="mPrev" aria-label="Previous month">‹</button>
+      <b id="mLabel"></b>
+      <button type="button" class="btn" id="mNext" aria-label="Next month">›</button>
+    </div>
+    <div class="tot-head">
+      <div><b id="tAll">$0</b><span>Total due</span></div>
+      <div><b id="tPaid">$0</b><span>Paid</span></div>
+      <div><b id="tLeft">$0</b><span>Still to pay</span></div>
+    </div>
+    <div class="cat-rows" id="catRows"></div>
+    <div class="btns"><button type="button" class="btn primary" id="totClose">Done</button></div>
+  </div>
+</dialog>
+
+<dialog id="setDlg" aria-labelledby="setTitle">
+  <div class="sheet">
+    <h2 id="setTitle">Reminders</h2>
+    <label>Remind me<select id="remDays">
+      <option value="1">1 day before</option>
+      <option value="2">2 days before</option>
+      <option value="3">3 days before</option>
+      <option value="5">5 days before</option>
+      <option value="7">1 week before</option>
+    </select></label>
+
+    <h3>Phone calendar alerts</h3>
+    <p class="help">The most reliable option, especially on iPhone. Adds your unpaid bills to your calendar with an alert at 9 AM. Repeating bills repeat in the calendar too. Download again after adding new bills.</p>
+    <button class="btn primary wide" id="icsBtn">Add bills to my calendar</button>
+
+    <h3>App notifications</h3>
+    <p class="help" id="notifHelp">Shows a notification for bills coming due when you open the app. On iPhone this needs the app on your home screen first (Share, then Add to Home Screen).</p>
+    <button class="btn wide" id="notifBtn">Turn on notifications</button>
+    <div class="status-line" id="notifStatus"></div>
+
+    <div class="btns"><button type="button" class="btn primary" id="setClose">Done</button></div>
+  </div>
+</dialog>
+
 <script>
 (function(){
   const KEY = 'billTracker.v1';
+  const SET_KEY = 'billTracker.settings';
+  const NOTIFIED_KEY = 'billTracker.notified';
   const DEFAULT_CATS = ['Housing','Utilities','Phone & Internet','Insurance','Subscriptions','Credit card','Loan','Transport','Other'];
   const SOON_DAYS = 7;
+  const REPEATS = {
+    none:{label:'',      months:0, days:0},
+    weekly:{label:'Weekly', days:7},
+    biweekly:{label:'Every 2 weeks', days:14},
+    monthly:{label:'Monthly', months:1},
+    quarterly:{label:'Every 3 months', months:3},
+    semiannual:{label:'Every 6 months', months:6},
+    yearly:{label:'Yearly', months:12}
+  };
+  let settings = loadSettings();
   let bills = load();
   let editingId = null;
+  let view = 'list';
 
   const $ = s => document.querySelector(s);
   const money = n => Number(n||0).toLocaleString(undefined,{style:'currency',currency:'USD'});
+  const newId = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
 
+  // ---------- storage ----------
+  function normalize(b){
+    const due = String(b.due||'').slice(0,10);
+    const repeat = REPEATS[b.repeat] ? b.repeat : 'none';
+    return {
+      id: String(b.id || newId()), name: String(b.name||''), amount: Number(b.amount)||0, due,
+      category: String(b.category||''), paid: !!b.paid, notes: String(b.notes||''),
+      repeat, anchorDay: Number(b.anchorDay) || (due ? Number(due.slice(8,10)) : 1),
+      autopay: !!b.autopay, link: safeUrl(b.link),
+      paidOn: b.paid ? String(b.paidOn||'').slice(0,10) : '',
+      paidAmount: b.paid && b.paidAmount!=null && b.paidAmount!=='' ? Number(b.paidAmount) : null,
+      series: String(b.series || b.id || ''), autoFrom: String(b.autoFrom||''), ...(b.untouched ? {untouched:true} : {}),
+      created: b.created || Date.now(), updated: b.updated || b.created || Date.now()
+    };
+  }
   function load(){
-    try{ const v = JSON.parse(localStorage.getItem(KEY)); return Array.isArray(v) ? v : []; }
-    catch(e){ return []; }
+    try{
+      const v = JSON.parse(localStorage.getItem(KEY));
+      return Array.isArray(v) ? v.filter(b=>b && b.name && b.due).map(normalize) : [];
+    }catch(e){ return []; }
   }
   function save(){
     try{ localStorage.setItem(KEY, JSON.stringify(bills)); }
     catch(e){ alert('Could not save on this device. Try exporting a backup.'); }
+    writeReminderData();
   }
+  function loadSettings(){
+    try{ return Object.assign({remindDays:3, bannerDismissed:false}, JSON.parse(localStorage.getItem(SET_KEY))||{}); }
+    catch(e){ return {remindDays:3, bannerDismissed:false}; }
+  }
+  function saveSettings(){ try{ localStorage.setItem(SET_KEY, JSON.stringify(settings)); }catch(e){} writeReminderData(); }
+
+  // ---------- dates ----------
   function today(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+  function iso(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+  function todayStr(){ return iso(new Date()); }
   function parseDate(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); }
   function daysUntil(s){ return Math.round((parseDate(s) - today())/86400000); }
+  function daysBetween(a,b){ return Math.round((parseDate(b)-parseDate(a))/86400000); }
+  function fmtDate(s, withYear){
+    const d = parseDate(s);
+    return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:(withYear || d.getFullYear()!==new Date().getFullYear())?'numeric':undefined});
+  }
+  function addPeriod(due, repeat, anchorDay){
+    const r = REPEATS[repeat]; const d = parseDate(due);
+    if(r.days){ d.setDate(d.getDate()+r.days); return iso(d); }
+    const y = d.getFullYear(), m = d.getMonth() + r.months;
+    const last = new Date(y, m+1, 0).getDate();
+    return iso(new Date(y, m, Math.min(anchorDay || d.getDate(), last)));
+  }
+
   function state(b){
     if(b.paid) return 'paid';
     const d = daysUntil(b.due);
@@ -178,15 +435,58 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
   }
   function dueLabel(b){
     const d = daysUntil(b.due);
-    const dateStr = parseDate(b.due).toLocaleDateString(undefined,{month:'short',day:'numeric',year: parseDate(b.due).getFullYear()!==new Date().getFullYear()?'numeric':undefined});
-    if(b.paid) return dateStr;
+    const dateStr = fmtDate(b.due);
+    if(b.paid) return b.paidOn && b.paidOn!==b.due ? `${dateStr} · paid ${fmtDate(b.paidOn)}` : dateStr;
     if(d < 0) return `${dateStr} · ${-d} day${d===-1?'':'s'} late`;
     if(d === 0) return `${dateStr} · today`;
     if(d === 1) return `${dateStr} · tomorrow`;
     return `${dateStr} · in ${d} days`;
   }
   function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function safeUrl(u){
+    u = String(u||'').trim(); if(!u) return '';
+    if(!/^[a-z][a-z0-9+.-]*:/i.test(u)) u = 'https://' + u;
+    try{ const x = new URL(u); return (x.protocol==='https:'||x.protocol==='http:') ? x.href : ''; }catch(e){ return ''; }
+  }
 
+  // ---------- paying & recurring ----------
+  function nextOf(b){ return bills.find(x=>x.autoFrom===b.id); }
+  function ensureNext(b){
+    if(b.repeat==='none') return null;
+    if(bills.some(x=>x.series===b.series && x.id!==b.id && x.due > b.due)) return null;
+    const due = addPeriod(b.due, b.repeat, b.anchorDay);
+    const n = normalize({
+      ...b, id: newId(), due, paid:false, paidOn:'', paidAmount:null,
+      series: b.series, autoFrom: b.id, created: Date.now(), updated: Date.now()
+    });
+    n.untouched = true;
+    bills.push(n);
+    return n;
+  }
+  function markPaid(b, on, amount){
+    b.paid = true; b.paidOn = on || todayStr();
+    b.paidAmount = amount!=null ? amount : b.amount;
+    b.updated = Date.now();
+    return ensureNext(b);
+  }
+  function markUnpaid(b){
+    b.paid = false; b.paidOn = ''; b.paidAmount = null; b.updated = Date.now();
+    const n = nextOf(b);
+    if(n && n.untouched && !n.paid) bills = bills.filter(x=>x!==n);
+  }
+  function runAutopay(){
+    const t = todayStr(); let changed = 0;
+    // a paid repeating bill should always have its next one waiting
+    bills.filter(b=>b.paid && b.repeat!=='none').forEach(b=>{ if(ensureNext(b)) changed++; });
+    for(let guard=0; guard<500; guard++){
+      const b = bills.find(x=>x.autopay && !x.paid && x.due <= t);
+      if(!b) break;
+      markPaid(b, b.due, b.amount); changed++;
+    }
+    return changed;
+  }
+
+  // ---------- categories ----------
   function categories(){
     const set = new Set(DEFAULT_CATS);
     bills.forEach(b => b.category && set.add(b.category));
@@ -200,9 +500,27 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
     $('#catList').innerHTML = categories().map(c=>`<option value="${esc(c)}">`).join('');
   }
 
+  // ---------- views ----------
+  function setView(v){
+    view = v;
+    document.body.dataset.view = v;
+    $('#viewList').hidden = v!=='list'; $('#viewCal').hidden = v!=='cal'; $('#viewHist').hidden = v!=='hist';
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current', b.dataset.view===v ? 'page' : 'false'));
+    $('#viewTitle').textContent = {list:'Bills', cal:'Calendar', hist:'Payment history'}[v];
+    render(); window.scrollTo(0,0);
+  }
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click', ()=>setView(b.dataset.view)));
+
   function render(){
     refreshCats();
-    // summary
+    renderSummary();
+    if(view==='list') renderList();
+    if(view==='cal') renderCal();
+    if(view==='hist') renderHist();
+    $('#remBanner').hidden = !(bills.length && !settings.bannerDismissed && !settings.setUp);
+  }
+
+  function renderSummary(){
     const overdue = bills.filter(b=>state(b)==='overdue');
     const soon = bills.filter(b=>state(b)==='soon');
     const unpaid = bills.filter(b=>!b.paid);
@@ -214,8 +532,10 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
     $('#sUnpaid').textContent = money(sum(unpaid));
     const st = $('#fStatus').value;
     document.querySelectorAll('.stat').forEach(el=>el.setAttribute('aria-pressed', String(el.dataset.quick===st)));
+  }
 
-    // filter
+  function renderList(){
+    const st = $('#fStatus').value;
     const q = $('#q').value.trim().toLowerCase();
     const cat = $('#fCat').value;
     let rows = bills.filter(b=>{
@@ -224,12 +544,12 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
       if(st==='unpaid' && b.paid) return false;
       if(st==='overdue' && s!=='overdue') return false;
       if(st==='soon' && s!=='soon') return false;
+      if(st==='recurring' && (b.repeat==='none' || b.paid)) return false;
+      if(st==='autopay' && (!b.autopay || b.paid)) return false;
       if(cat!=='all' && (b.category||'Uncategorized')!==cat) return false;
       if(q && !(`${b.name} ${b.category} ${b.notes}`.toLowerCase().includes(q))) return false;
       return true;
     });
-
-    // sort
     const sort = $('#sort').value;
     const cmp = {
       'due-asc':(a,b)=>a.due.localeCompare(b.due),
@@ -246,22 +566,14 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
       list.innerHTML = `<div class="empty"><p><b>No bills yet.</b></p><p>Tap “+ Add bill” to add your first one.</p></div>`;
       return;
     }
-    if(!rows.length){
-      list.innerHTML = `<div class="empty">No bills match these filters.</div>`;
-      return;
-    }
-
-    // group by state when sorted by due date ascending
+    if(!rows.length){ list.innerHTML = `<div class="empty">No bills match these filters.</div>`; return; }
     let html = '';
     if(sort==='due-asc'){
-      const groups = [['overdue','Overdue'],['soon','Due soon'],['later','Later'],['paid','Paid']];
-      groups.forEach(([k,label])=>{
+      [['overdue','Overdue'],['soon','Due soon'],['later','Later'],['paid','Paid']].forEach(([k,label])=>{
         const g = rows.filter(b=>state(b)===k);
         if(g.length) html += `<div class="group-title">${label}</div>` + g.map(card).join('');
       });
-    } else {
-      html = rows.map(card).join('');
-    }
+    } else html = rows.map(card).join('');
     list.innerHTML = html;
   }
 
@@ -270,19 +582,135 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
     const chip = s==='overdue' ? '<span class="chip overdue">Overdue</span>'
                : s==='soon' ? '<span class="chip soon">Due soon</span>'
                : s==='paid' ? '<span class="chip paid">Paid</span>' : '';
-    return `<div class="bill ${b.paid?'paid':''}" data-id="${b.id}">
+    const rep = b.repeat!=='none' ? `<span class="chip" title="Repeats">↻ ${REPEATS[b.repeat].label}</span>` : '';
+    const auto = b.autopay ? '<span class="chip auto">Autopay</span>' : '';
+    const hasHist = bills.some(x=>x.series===b.series && x.paid);
+    const paidAmt = b.paid && b.paidAmount!=null && b.paidAmount!==b.amount ? b.paidAmount : null;
+    return `<div class="bill ${b.paid?'paid':''}" data-id="${esc(b.id)}">
       <button class="check" data-act="toggle" aria-label="${b.paid?'Mark unpaid':'Mark paid'}" title="${b.paid?'Mark unpaid':'Mark paid'}">${b.paid?'✓':''}</button>
       <div class="name">${esc(b.name)}</div>
-      <div class="amt">${money(b.amount)}</div>
-      <div class="meta">${chip}<span>${esc(dueLabel(b))}</span>${b.category?`<span class="chip">${esc(b.category)}</span>`:''}</div>
+      <div class="amt">${money(paidAmt!=null?paidAmt:b.amount)}</div>
+      <div class="meta">${chip}<span>${esc(dueLabel(b))}</span>${b.category?`<span class="chip">${esc(b.category)}</span>`:''}${rep}${auto}</div>
       ${b.notes?`<div class="notes">${esc(b.notes)}</div>`:''}
       <div class="row-actions">
+        ${b.link && !b.paid ? `<a class="link pay" href="${esc(b.link)}" target="_blank" rel="noopener noreferrer">Pay ↗</a>` : ''}
         <button class="link" data-act="edit">Edit</button>
+        ${hasHist ? '<button class="link" data-act="history">History</button>' : ''}
         <button class="link danger" data-act="delete">Delete</button>
       </div>
     </div>`;
   }
 
+  // ---------- calendar ----------
+  let calMonth = (()=>{ const d = new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })();
+  let calDay = null;
+  function projected(y, m){
+    // expected future occurrences of repeating bills that don't exist yet
+    const start = iso(new Date(y,m,1)), end = iso(new Date(y,m+1,0)), t = todayStr();
+    const latest = new Map();
+    bills.forEach(b=>{ if(b.repeat!=='none'){ const cur = latest.get(b.series); if(!cur || b.due > cur.due) latest.set(b.series, b); } });
+    const out = [];
+    latest.forEach(b=>{
+      let d = b.due;
+      for(let i=0; i<400; i++){
+        d = addPeriod(d, b.repeat, b.anchorDay);
+        if(d > end) break;
+        if(d >= start && d >= t) out.push({proj:true, id:b.id, name:b.name, amount:b.amount, due:d, autopay:b.autopay});
+      }
+    });
+    return out;
+  }
+  function renderCal(){
+    const {y,m} = calMonth;
+    const key = `${y}-${String(m+1).padStart(2,'0')}`;
+    $('#cLabel').textContent = new Date(y,m,1).toLocaleDateString(undefined,{month:'long',year:'numeric'});
+    const real = bills.filter(b=>b.due.slice(0,7)===key);
+    const proj = projected(y,m);
+    const byDay = {};
+    [...real, ...proj].forEach(b=>{ (byDay[b.due] = byDay[b.due] || []).push(b); });
+    const first = new Date(y,m,1).getDay(), days = new Date(y,m+1,0).getDate(), t = todayStr();
+    let html = '';
+    for(let i=0;i<7;i++) html += `<div class="wd" aria-hidden="true">${new Date(2023,0,1+i).toLocaleDateString(undefined,{weekday:'narrow'})}</div>`;
+    for(let i=0;i<first;i++) html += '<div class="day out"></div>';
+    for(let d=1; d<=days; d++){
+      const ds = `${key}-${String(d).padStart(2,'0')}`;
+      const items = byDay[ds] || [];
+      const total = items.reduce((s,b)=>s+Number(b.amount||0),0);
+      const dots = items.slice(0,4).map(b=>`<i class="dot ${b.proj?'proj':state(b)}"></i>`).join('');
+      const label = new Date(y,m,d).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'}) + (items.length?`, ${items.length} bill${items.length>1?'s':''}, ${money(total)}`:'');
+      html += `<button class="day ${ds===t?'today':''}" data-day="${ds}" aria-pressed="${ds===calDay}" aria-label="${esc(label)}">
+        <span class="n">${d}</span>${items.length?`<span class="dots">${dots}</span><span class="sum">${Math.round(total).toLocaleString()}</span>`:''}</button>`;
+    }
+    $('#calGrid').innerHTML = html;
+
+    const pick = calDay && calDay.slice(0,7)===key ? calDay : null;
+    const shown = (pick ? (byDay[pick]||[]) : [...real, ...proj]).sort((a,b)=>a.due.localeCompare(b.due) || (a.proj?1:0)-(b.proj?1:0));
+    $('#dayTitle').textContent = pick ? parseDate(pick).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})
+                                      : `All bills in ${new Date(y,m,1).toLocaleDateString(undefined,{month:'long'})}`;
+    $('#dayTotal').textContent = shown.length ? money(shown.reduce((s,b)=>s+Number(b.amount||0),0)) : '';
+    $('#dayList').innerHTML = shown.length ? shown.map(b=>b.proj
+      ? `<div class="proj-row"><span>${esc(b.name)} · expected ${esc(fmtDate(b.due))}${b.autopay?' · autopay':''}</span><span>${money(b.amount)}</span></div>`
+      : card(b)).join('')
+      : `<div class="empty" style="padding:20px">${pick?'Nothing due this day.':'No bills due this month.'}</div>`;
+  }
+  $('#calGrid').addEventListener('click', e=>{
+    const d = e.target.closest('[data-day]'); if(!d) return;
+    calDay = calDay===d.dataset.day ? null : d.dataset.day; renderCal();
+  });
+  function shiftCal(n){ const d = new Date(calMonth.y, calMonth.m+n, 1); calMonth = {y:d.getFullYear(), m:d.getMonth()}; calDay = null; renderCal(); }
+  $('#cPrev').addEventListener('click', ()=>shiftCal(-1));
+  $('#cNext').addEventListener('click', ()=>shiftCal(1));
+
+  // ---------- payment history ----------
+  function renderHist(){
+    const sel = $('#hBill'), cur = sel.value;
+    const series = new Map();
+    bills.filter(b=>b.paid).sort((a,b)=>b.due.localeCompare(a.due)).forEach(b=>{ if(!series.has(b.series)) series.set(b.series, b.name); });
+    const opts = [...series].sort((a,b)=>a[1].localeCompare(b[1]));
+    sel.innerHTML = '<option value="all">All bills</option>' + opts.map(([id,n])=>`<option value="${esc(id)}">${esc(n)}</option>`).join('');
+    sel.value = series.has(cur) ? cur : 'all';
+
+    const range = $('#hRange').value;
+    let from = '';
+    if(range!=='all'){ const d = new Date(); d.setMonth(d.getMonth()-Number(range)); from = iso(d); }
+    const when = b => b.paidOn || b.due;
+    const rows = bills.filter(b=>b.paid && (sel.value==='all' || b.series===sel.value) && (!from || when(b) >= from))
+                      .sort((a,b)=>when(b).localeCompare(when(a)));
+    const amt = b => b.paidAmount!=null ? b.paidAmount : b.amount;
+    const total = rows.reduce((s,b)=>s+Number(amt(b)||0),0);
+    const rangeLbl = {12:'in the last 12 months', 3:'in the last 3 months', all:'all time'}[range];
+    $('#hTotal').textContent = money(total);
+    $('#hTotalLbl').textContent = `Paid ${rangeLbl}`;
+    $('#hCount').textContent = sel.value!=='all' && rows.length ? money(total/rows.length) : rows.length;
+    $('#hCountLbl').textContent = sel.value!=='all' && rows.length ? `Average of ${rows.length} payment${rows.length>1?'s':''}` : 'Payments';
+
+    if(!rows.length){
+      $('#histList').innerHTML = `<div class="empty">${bills.some(b=>b.paid)?'No payments in this range.':'<b>No payments yet.</b><br>Tick the circle on a bill when you pay it, and it shows up here.'}</div>`;
+      return;
+    }
+    let html = '', month = '';
+    rows.forEach(b=>{
+      const mk = when(b).slice(0,7);
+      if(mk!==month){
+        month = mk;
+        const mt = rows.filter(x=>when(x).slice(0,7)===mk).reduce((s,x)=>s+Number(amt(x)||0),0);
+        html += `<div class="group-title">${parseDate(mk+'-01').toLocaleDateString(undefined,{month:'long',year:'numeric'})}<span class="month-total">${money(mt)}</span></div>`;
+      }
+      let timing = '';
+      if(b.paidOn){
+        const late = daysBetween(b.due, b.paidOn);
+        timing = late>0 ? ` · <span class="late">${late} day${late>1?'s':''} late</span>` : late<0 ? ` · ${-late} day${late<-1?'s':''} early` : ' · on time';
+      }
+      const diff = b.paidAmount!=null && b.paidAmount!==b.amount ? ` · bill was ${money(b.amount)}` : '';
+      html += `<div class="pay-row"><span class="nm">${esc(b.name)}</span><span class="am">${money(amt(b))}</span>
+        <span class="sub">${b.paidOn?`Paid ${esc(fmtDate(b.paidOn))}`:'Paid (date not recorded)'} · due ${esc(fmtDate(b.due))}${timing}${b.autopay?' · autopay':''}${diff}</span></div>`;
+    });
+    $('#histList').innerHTML = html;
+  }
+  $('#hBill').addEventListener('input', renderHist);
+  $('#hRange').addEventListener('input', renderHist);
+
+  // ---------- add / edit ----------
   function openForm(b){
     editingId = b ? b.id : null;
     const f = $('#form');
@@ -290,47 +718,89 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
     $('#formTitle').textContent = b ? 'Edit bill' : 'Add bill';
     f.name.value = b?.name || '';
     f.amount.value = b ? b.amount : '';
-    f.due.value = b?.due || new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+    f.due.value = b?.due || todayStr();
     f.category.value = b?.category || '';
+    f.repeat.value = b?.repeat || 'none';
+    f.link.value = b?.link || '';
+    f.autopay.checked = !!b?.autopay;
     f.paid.checked = !!b?.paid;
+    f.paidOn.value = b?.paidOn || '';
+    f.paidAmount.value = b?.paidAmount!=null ? b.paidAmount : '';
     f.notes.value = b?.notes || '';
+    syncFormBits();
     $('#dlg').showModal();
     if(!b) setTimeout(()=>f.name.focus(),50);
   }
+  function syncFormBits(){
+    const f = $('#form');
+    $('#paidFields').hidden = !f.paid.checked;
+    if(f.paid.checked && !f.paidOn.value) f.paidOn.value = todayStr();
+    $('#repeatHelp').hidden = f.repeat.value==='none';
+  }
+  ['paid','repeat'].forEach(n=>$('#form')[n].addEventListener('input', syncFormBits));
 
   $('#form').addEventListener('submit', e=>{
     e.preventDefault();
     const f = e.target;
+    const amount = Math.round(parseFloat(f.amount.value)*100)/100;
+    const pa = f.paidAmount.value==='' ? null : Math.round(parseFloat(f.paidAmount.value)*100)/100;
     const data = {
-      name: f.name.value.trim(),
-      amount: Math.round(parseFloat(f.amount.value)*100)/100,
-      due: f.due.value,
-      category: f.category.value.trim(),
-      paid: f.paid.checked,
-      notes: f.notes.value.trim()
+      name: f.name.value.trim(), amount, due: f.due.value,
+      category: f.category.value.trim(), notes: f.notes.value.trim(),
+      repeat: f.repeat.value, autopay: f.autopay.checked, link: safeUrl(f.link.value)
     };
-    if(!data.name || isNaN(data.amount) || !data.due) return;
+    if(!data.name || isNaN(amount) || !data.due) return;
+    if(f.link.value.trim() && !data.link){ alert('That payment link doesn\'t look like a web address.'); return; }
+    let b;
     if(editingId){
-      const i = bills.findIndex(b=>b.id===editingId);
-      bills[i] = {...bills[i], ...data, updated: Date.now()};
+      b = bills.find(x=>x.id===editingId);
+      if(data.due !== b.due) data.anchorDay = Number(data.due.slice(8,10));
+      Object.assign(b, data, {updated: Date.now()});
+      delete b.untouched;
     } else {
-      bills.push({id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random()), ...data, created: Date.now()});
+      b = normalize({id:newId(), ...data});
+      b.series = b.id;
+      bills.push(b);
     }
+    if(f.paid.checked){
+      b.paid = true; b.paidOn = f.paidOn.value || todayStr(); b.paidAmount = pa!=null && !isNaN(pa) ? pa : b.amount;
+      ensureNext(b);
+    } else if(b.paid){ markUnpaid(b); }
+    runAutopay();
     save(); $('#dlg').close(); render();
   });
   $('#cancelBtn').addEventListener('click', ()=>$('#dlg').close());
   $('#addBtn').addEventListener('click', ()=>openForm(null));
 
-  $('#list').addEventListener('click', e=>{
+  // ---------- toast with undo ----------
+  let toastTimer, undoFn = null;
+  function toast(msg, undo){
+    $('#toastMsg').textContent = msg; undoFn = undo || null;
+    $('#toastUndo').hidden = !undo; $('#toast').hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(()=>{ $('#toast').hidden = true; undoFn = null; }, 6000);
+  }
+  $('#toastUndo').addEventListener('click', ()=>{ if(undoFn) undoFn(); $('#toast').hidden = true; undoFn = null; });
+
+  function onBillClick(e){
     const btn = e.target.closest('[data-act]'); if(!btn) return;
-    const id = btn.closest('.bill').dataset.id;
-    const b = bills.find(x=>x.id===id); if(!b) return;
-    if(btn.dataset.act==='toggle'){ b.paid = !b.paid; save(); render(); }
-    if(btn.dataset.act==='edit'){ openForm(b); }
-    if(btn.dataset.act==='delete'){
-      if(confirm(`Delete “${b.name}”?`)){ bills = bills.filter(x=>x.id!==id); save(); render(); }
+    const el = btn.closest('.bill'); if(!el) return;
+    const b = bills.find(x=>x.id===el.dataset.id); if(!b) return;
+    const act = btn.dataset.act;
+    if(act==='toggle'){
+      if(b.paid){ markUnpaid(b); save(); render(); return; }
+      const n = markPaid(b);
+      save(); render();
+      toast(n ? `Paid. Next one added for ${fmtDate(n.due)}.` : `Marked “${b.name}” paid.`, ()=>{ markUnpaid(b); save(); render(); });
     }
-  });
+    if(act==='edit') openForm(b);
+    if(act==='history'){ setView('hist'); $('#hBill').value = b.series; renderHist(); }
+    if(act==='delete'){
+      const msg = b.repeat!=='none' ? `Delete this “${b.name}” bill? It will stop repeating. Past payments stay in history.` : `Delete “${b.name}”?`;
+      if(confirm(msg)){ bills = bills.filter(x=>x.id!==b.id); save(); render(); }
+    }
+  }
+  $('#list').addEventListener('click', onBillClick);
+  $('#dayList').addEventListener('click', onBillClick);
 
   ['#q','#fStatus','#fCat','#sort'].forEach(s=>$(s).addEventListener('input', render));
   document.querySelectorAll('.stat').forEach(el=>el.addEventListener('click', ()=>{
@@ -339,12 +809,216 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
     render();
   }));
 
-  $('#exportBtn').addEventListener('click', ()=>{
-    const blob = new Blob([JSON.stringify({version:1, exported:new Date().toISOString(), bills},null,2)],{type:'application/json'});
+  // ---------- monthly totals ----------
+  let viewMonth = (()=>{ const d = new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })();
+  function renderTotals(){
+    const {y,m} = viewMonth;
+    const key = `${y}-${String(m+1).padStart(2,'0')}`;
+    $('#mLabel').textContent = new Date(y,m,1).toLocaleDateString(undefined,{month:'long',year:'numeric'});
+    const inMonth = bills.filter(b=>String(b.due).slice(0,7)===key);
+    const total = inMonth.reduce((t,b)=>t+Number(b.amount||0),0);
+    const paid = inMonth.filter(b=>b.paid).reduce((t,b)=>t+Number(b.amount||0),0);
+    $('#tAll').textContent = money(total);
+    $('#tPaid').textContent = money(paid);
+    $('#tLeft').textContent = money(total-paid);
+    const byCat = new Map();
+    inMonth.forEach(b=>{
+      const c = b.category || 'Uncategorized';
+      const r = byCat.get(c) || {amt:0, n:0, paid:0};
+      r.amt += Number(b.amount||0); r.n++; if(b.paid) r.paid += Number(b.amount||0);
+      byCat.set(c, r);
+    });
+    const rows = [...byCat].sort((a,b)=>b[1].amt-a[1].amt);
+    $('#catRows').innerHTML = rows.length ? rows.map(([c,r])=>{
+      const pct = total>0 ? Math.round(r.amt/total*1000)/10 : 0;
+      const left = r.amt - r.paid;
+      return `<div class="cat-row">
+        <span>${esc(c)}</span><span class="amt">${money(r.amt)}</span>
+        <div class="bar" role="img" aria-label="${pct}% of the month"><i style="width:${pct}%"></i></div>
+        <span class="sub">${pct}% · ${r.n} bill${r.n===1?'':'s'}${left>0?` · ${money(left)} still to pay`:' · all paid'}</span>
+      </div>`;
+    }).join('') : '<div class="empty" style="padding:16px">No bills due this month.</div>';
+  }
+  function shiftMonth(n){
+    const d = new Date(viewMonth.y, viewMonth.m+n, 1);
+    viewMonth = {y:d.getFullYear(), m:d.getMonth()};
+    renderTotals();
+  }
+  $('#totalsBtn').addEventListener('click', ()=>{
+    const d = new Date(); viewMonth = {y:d.getFullYear(), m:d.getMonth()};
+    renderTotals(); $('#totDlg').showModal();
+  });
+  $('#mPrev').addEventListener('click', ()=>shiftMonth(-1));
+  $('#mNext').addEventListener('click', ()=>shiftMonth(1));
+  $('#totClose').addEventListener('click', ()=>$('#totDlg').close());
+
+  // ---------- reminders ----------
+  function dueForReminder(){
+    const n = Number(settings.remindDays)||3;
+    return bills.filter(b=>!b.paid && !b.autopay && daysUntil(b.due) <= n).sort((a,b)=>a.due.localeCompare(b.due));
+  }
+  function reminderText(list){
+    const title = list.length===1 ? `${list[0].name} is ${dueWords(list[0])}` : `${list.length} bills coming due`;
+    const body = list.slice(0,6).map(b=>`${b.name}: ${money(b.amount)}, ${dueWords(b)}`).join('\n') + (list.length>6?`\n+${list.length-6} more`:'');
+    return {title, body};
+  }
+  function dueWords(b){
+    const d = daysUntil(b.due);
+    return d<0 ? `${-d} day${d===-1?'':'s'} overdue` : d===0 ? 'due today' : d===1 ? 'due tomorrow' : `due in ${d} days`;
+  }
+  async function swReg(){
+    if(!('serviceWorker' in navigator)) return null;
+    try{ return await navigator.serviceWorker.ready; }catch(e){ return null; }
+  }
+  async function notify(force){
+    if(!('Notification' in window) || Notification.permission!=='granted') return false;
+    const list = dueForReminder();
+    if(!list.length) return false;
+    const t = todayStr();
+    let last = ''; try{ last = localStorage.getItem(NOTIFIED_KEY)||''; }catch(e){}
+    if(!force && last===t) return false;
+    const {title, body} = reminderText(list);
+    const opts = {body, tag:'bill-reminder', icon:'icon-192.png', badge:'icon-192.png', data:{url:location.href}};
+    try{
+      const reg = await swReg();
+      if(reg) await reg.showNotification(title, opts); else new Notification(title, opts);
+      try{ localStorage.setItem(NOTIFIED_KEY, t); }catch(e){}
+      return true;
+    }catch(e){ return false; }
+  }
+  // hand the upcoming bills to the service worker so it can remind in the background where the browser allows it
+  async function writeReminderData(){
+    if(!('caches' in window)) return;
+    try{
+      const c = await caches.open('bill-reminders');
+      const data = {remindDays:Number(settings.remindDays)||3,
+        bills: bills.filter(b=>!b.paid && !b.autopay).map(b=>({name:b.name, amount:b.amount, due:b.due}))};
+      await c.put('reminder-data.json', new Response(JSON.stringify(data), {headers:{'content-type':'application/json'}}));
+    }catch(e){}
+  }
+  async function registerPeriodic(){
+    try{
+      const reg = await swReg();
+      if(reg && 'periodicSync' in reg){
+        const p = await navigator.permissions.query({name:'periodic-background-sync'});
+        if(p.state==='granted') await reg.periodicSync.register('bill-reminders', {minInterval: 12*60*60*1000});
+      }
+    }catch(e){}
+  }
+  function isStandalone(){ return matchMedia('(display-mode: standalone)').matches || navigator.standalone===true; }
+  function isIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1); }
+  function renderNotifStatus(){
+    const s = $('#notifStatus'), btn = $('#notifBtn');
+    s.className = 'status-line';
+    if(!('Notification' in window)){
+      btn.disabled = true;
+      s.textContent = isIOS() && !isStandalone() ? 'Add this app to your home screen first (Share, then Add to Home Screen), then open it from there.' : 'This browser can\'t show notifications. Use calendar alerts instead.';
+      return;
+    }
+    btn.disabled = false;
+    if(Notification.permission==='granted'){ btn.textContent = 'Send a test notification'; s.textContent = 'Notifications are on.'; s.classList.add('ok'); }
+    else if(Notification.permission==='denied'){ btn.disabled = true; s.textContent = 'Notifications are blocked. Allow them for this site in your browser or phone settings.'; s.classList.add('bad'); }
+    else { btn.textContent = 'Turn on notifications'; s.textContent = ''; }
+  }
+  $('#notifBtn').addEventListener('click', async ()=>{
+    if(Notification.permission==='granted'){
+      const sent = await notify(true);
+      if(!sent){
+        const opts = {body:'Reminders will look like this.', tag:'bill-test', icon:'icon-192.png'};
+        const reg = await swReg();
+        try{ if(reg) await reg.showNotification('Bill reminders are on', opts); else new Notification('Bill reminders are on', opts); }catch(e){}
+      }
+      return;
+    }
+    const p = await Notification.requestPermission();
+    if(p==='granted'){ settings.setUp = true; saveSettings(); registerPeriodic(); notify(true); render(); }
+    renderNotifStatus();
+  });
+  $('#remDays').addEventListener('input', e=>{ settings.remindDays = Number(e.target.value); saveSettings(); });
+  function openSettings(){ $('#remDays').value = String(settings.remindDays); renderNotifStatus(); $('#setDlg').showModal(); }
+  $('#settingsBtn').addEventListener('click', openSettings);
+  $('#setClose').addEventListener('click', ()=>$('#setDlg').close());
+  $('#remBannerOn').addEventListener('click', openSettings);
+  $('#remBannerNo').addEventListener('click', ()=>{ settings.bannerDismissed = true; saveSettings(); render(); });
+
+  // calendar file (.ics) with alerts
+  function icsEscape(s){ return String(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); }
+  function icsFold(line){ const out = []; while(line.length>73){ out.push(line.slice(0,73)); line = ' ' + line.slice(73); } out.push(line); return out.join('\r\n'); }
+  function rrule(b){
+    const r = b.repeat;
+    if(r==='weekly') return 'FREQ=WEEKLY';
+    if(r==='biweekly') return 'FREQ=WEEKLY;INTERVAL=2';
+    const iv = {monthly:1, quarterly:3, semiannual:6, yearly:12}[r];
+    let rule = `FREQ=MONTHLY${iv>1?`;INTERVAL=${iv}`:''}`;
+    const day = b.anchorDay || Number(b.due.slice(8,10));
+    if(day>=29){ const ds=[]; for(let d=28; d<=day; d++) ds.push(d); rule += `;BYMONTHDAY=${ds.join(',')};BYSETPOS=-1`; }
+    else rule += `;BYMONTHDAY=${day}`;
+    return rule;
+  }
+  $('#icsBtn').addEventListener('click', ()=>{
+    const n = Number(settings.remindDays)||3;
+    const stamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
+    // one event per unpaid one-off bill; one repeating event per repeating bill (from its next unpaid date)
+    const seen = new Set();
+    const pick = bills.filter(b=>!b.paid).sort((a,b)=>a.due.localeCompare(b.due)).filter(b=>{
+      if(b.repeat==='none') return true;
+      if(seen.has(b.series)) return false; seen.add(b.series); return true;
+    });
+    if(!pick.length){ alert('No unpaid bills to add.'); return; }
+    const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Bill Tracker//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Bills'];
+    pick.forEach(b=>{
+      const d = b.due.replace(/-/g,'');
+      const next = parseDate(b.due); next.setDate(next.getDate()+1);
+      lines.push('BEGIN:VEVENT',
+        `UID:${b.repeat==='none'?b.id:b.series}@bill-tracker`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${iso(next).replace(/-/g,'')}`,
+        icsFold(`SUMMARY:${icsEscape(`Bill due: ${b.name} ${money(b.amount)}${b.autopay?' (autopay)':''}`)}`));
+      if(b.repeat!=='none') lines.push(`RRULE:${rrule(b)}`);
+      const desc = [b.category && `Category: ${b.category}`, b.link && `Pay: ${b.link}`, b.notes].filter(Boolean).join('\n');
+      if(desc) lines.push(icsFold(`DESCRIPTION:${icsEscape(desc)}`));
+      if(b.link) lines.push(icsFold(`URL:${b.link}`));
+      lines.push('TRANSP:TRANSPARENT');
+      if(!b.autopay){
+        lines.push('BEGIN:VALARM','ACTION:DISPLAY',icsFold(`DESCRIPTION:${icsEscape(`${b.name} is due in ${n} day${n>1?'s':''}`)}`),
+          `TRIGGER:-PT${n*24-9}H`,'END:VALARM',
+          'BEGIN:VALARM','ACTION:DISPLAY',icsFold(`DESCRIPTION:${icsEscape(`${b.name} is due today`)}`),'TRIGGER:PT9H','END:VALARM');
+      }
+      lines.push('END:VEVENT');
+    });
+    lines.push('END:VCALENDAR');
+    download(new Blob([lines.join('\r\n')+'\r\n'], {type:'text/calendar;charset=utf-8'}), 'bills.ics');
+    settings.setUp = true; saveSettings(); render();
+  });
+
+  function download(blob, name){
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `bills-backup-${new Date().toISOString().slice(0,10)}.json`;
-    a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  }
+
+  // ---------- CSV export ----------
+  function csvCell(v){
+    let s = String(v ?? '');
+    if(typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = "'" + s; // stop spreadsheets running text as formulas
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+  }
+  $('#csvBtn').addEventListener('click', ()=>{
+    const header = ['Bill name','Amount','Due date','Category','Status','Repeats','Autopay','Paid on','Amount paid','Payment link','Notes'];
+    const status = b => ({paid:'Paid', overdue:'Overdue', soon:'Due soon', later:'Unpaid'})[state(b)];
+    const lines = [header, ...[...bills].sort((a,b)=>a.due.localeCompare(b.due))
+      .map(b=>[b.name, Number(b.amount||0).toFixed(2), b.due, b.category||'', status(b),
+               REPEATS[b.repeat].label || 'No', b.autopay?'Yes':'No', b.paidOn||'',
+               b.paid ? Number(b.paidAmount!=null?b.paidAmount:b.amount).toFixed(2) : '', b.link||'', b.notes||''])]
+      .map(r=>r.map(csvCell).join(','));
+    download(new Blob(['\ufeff' + lines.join('\r\n')], {type:'text/csv;charset=utf-8'}), `bills-${todayStr()}.csv`);
+  });
+
+  // ---------- backup ----------
+  $('#exportBtn').addEventListener('click', ()=>{
+    download(new Blob([JSON.stringify({version:2, exported:new Date().toISOString(), bills},null,2)],{type:'application/json'}),
+      `bills-backup-${todayStr()}.json`);
   });
   $('#importBtn').addEventListener('click', ()=>$('#importFile').click());
   $('#importFile').addEventListener('change', async e=>{
@@ -353,18 +1027,25 @@ footer{max-width:760px;margin:24px auto 0;padding:0 16px;display:flex;gap:4px 12
       const parsed = JSON.parse(await file.text());
       const incoming = Array.isArray(parsed) ? parsed : parsed.bills;
       if(!Array.isArray(incoming)) throw new Error('bad');
-      const clean = incoming.filter(b=>b && b.name && b.due).map(b=>({
-        id: String(b.id || Date.now()+Math.random()), name:String(b.name), amount:Number(b.amount)||0,
-        due:String(b.due).slice(0,10), category:String(b.category||''), paid:!!b.paid, notes:String(b.notes||'')
-      }));
+      const clean = incoming.filter(b=>b && b.name && b.due).map(normalize);
       if(confirm(`Import ${clean.length} bills? This replaces the ${bills.length} bills on this device.`)){
-        bills = clean; save(); render();
+        bills = clean; runAutopay(); save(); render();
       }
     }catch(err){ alert('That file is not a valid bill backup.'); }
     e.target.value = '';
   });
 
+  // ---------- start ----------
+  if(runAutopay()) save(); else writeReminderData();
   render();
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    navigator.serviceWorker.register('sw.js').then(()=>{ registerPeriodic(); notify(false); }).catch(()=>notify(false));
+  } else notify(false);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState!=='visible') return;
+    if(runAutopay()) save();
+    render(); notify(false);
+  });
 })();
 </script>
 </body>
