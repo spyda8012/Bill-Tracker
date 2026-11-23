@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Small white notification icon: a bill with a check mark -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M7,2h10a2,2 0,0 1,2 2v8.1a6,6 0,0 0,-7.9 9.9H7a2,2 0,0 1,-2 -2V4a2,2 0,0 1,2 -2zM8,6.2v1.6h8V6.2zM8,9.7v1.6h8V9.7zM8,13.2v1.6h4v-1.6z"/>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M17,13a5,5 0,1 1,0 10a5,5 0,0 1,0 -10zM19.3,16.3l-3,3.1 -1.6,-1.6 -0.9,0.9 2.5,2.5 3.9,-4z"/>
+</vector>

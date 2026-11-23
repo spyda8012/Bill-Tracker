@@ -1,0 +1,14 @@
+{
+  "appId": "io.github.spyda8012.billtracker",
+  "appName": "Bill Tracker",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#F4F5FA"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_bill",
+      "iconColor": "#4338CA"
+    }
+  }
+}
