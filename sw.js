@@ -1,5 +1,5 @@
 // Bill Tracker service worker: works offline and shows bill reminders.
-const CACHE = 'bill-tracker-v2';
+const CACHE = 'bill-tracker-v3';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-180.png'];
 
 self.addEventListener('install', e => {
